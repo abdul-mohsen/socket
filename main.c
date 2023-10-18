@@ -8,6 +8,8 @@
 
 int main(int argc, char *argv[]) {
   int status;
+  struct sockaddr_storage their_addr;
+  socklen_t addr_size;
   struct addrinfo hint, *res, *p;
   char ipstr[INET6_ADDRSTRLEN];
 
@@ -45,7 +47,44 @@ int main(int argc, char *argv[]) {
     printf(" %s: %s\n", ipver, ipstr);
   
   }
+
+  int sockfd, new_fd;
   
+  if (!(sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol))) {
+    fprintf(stderr,"socket error: ");
+    return 1;
+  };
+  
+
+
+  if ((bind(sockfd, res->ai_addr, res->ai_addrlen))) {
+    fprintf(stderr,"bind error: ");
+    return 1;
+  }
+  /* if ((connect(sockfd, res->ai_addr, res->ai_addrlen))) {
+    fprintf(stderr,"connect error: ");
+    return 1;
+  } */
+  
+  if (listen(sockfd, BACKLOG)) {
+    fprintf(stderr,"listen error: ");
+    return 1;
+  }
+
+  addr_size = sizeof(their_addr);
+
+  new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size);
+
+  if (new_fd == -1) {
+    fprintf(stderr,"accept error: ");
+    return 1;
+  }
+
+  char *msg = "ssda po pa";
+  int len,bytes_sent;
+
+  len = strlen(msg);
+  bytes_sent = send(new_fd, msg, len, 0);
   
   freeaddrinfo(res);
   return 0;
