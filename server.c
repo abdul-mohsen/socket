@@ -13,7 +13,7 @@
 #define PORT "8000"  // the port users will be connecting to
 #define BACKLOG 10     // how many pending connections queue will hold
 
-void sigchild_handler(int s) {
+void sigchld_handler(int s) {
   printf("stuck here %i", s);
   int saved_errno = errno;
 
@@ -30,7 +30,7 @@ void *get_in_addr(struct sockaddr *sa) {
   return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int main()
+int main(void)
 {
   int sockfd, new_fd;
   struct addrinfo hints, *servinfo, *p;
@@ -46,19 +46,19 @@ int main()
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
-  if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo))) {
+  if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     return EXIT_FAILURE;
   }
 
-  for (p = servinfo; p->ai_next!=NULL; p = p->ai_next) {
+  for (p = servinfo; p!=NULL; p = p->ai_next) {
 
-    if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) != -1) {
+    if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
       perror("server: socket");
       continue;
     }
 
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))) {
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
       perror("setsockopt");
       exit(1);
 
@@ -84,22 +84,23 @@ int main()
     exit(1);
   }
 
-  sa.sa_handler = sigchild_handler;
+  sa.sa_handler = sigchld_handler;
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = SA_RESTART;
+  if (sigaction(SIGCHLD, &sa, NULL)) {
+    perror("sigaction");
+    exit(1);
+  }
   printf("server: waiting for connections...\n");
 
   while (1) {
     sin_size = sizeof their_addr;
     new_fd = accept(sockfd, (struct  sockaddr*)&their_addr, &sin_size);
-    printf("waiting... \n");
     if (new_fd == -1) {
-      printf("waiting... \n");
       perror("accept");
       continue;
     }
 
-    printf("waiting... \n");
     inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr*)&their_addr), s, sizeof s);
     printf("server got connection: from %s\n", s);
     if (!fork()) {
@@ -111,6 +112,7 @@ int main()
       close(new_fd);
       exit(0);
     }
+    close(new_fd);
   }
   return 0;
 }
