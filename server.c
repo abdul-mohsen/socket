@@ -1,3 +1,4 @@
+#include "util.h"
 #include <errno.h>
 #include <netdb.h>
 #include <signal.h>
@@ -9,26 +10,6 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
-
-#define PORT "8000"  // the port users will be connecting to
-#define BACKLOG 10     // how many pending connections queue will hold
-
-void sigchld_handler(int s) {
-  printf("stuck here %i", s);
-  int saved_errno = errno;
-
-  while (waitpid(-1, NULL, WNOHANG) > 0);
-
-  errno = saved_errno;
-}
-
-void *get_in_addr(struct sockaddr *sa) {
-  if (sa->sa_family == AF_INET) {
-    return &(((struct sockaddr_in*)sa)->sin_addr);
-  }
-
-  return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
 
 int main(void)
 {
